@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/HumXC/scrcpy-go"
 	"github.com/HumXC/scrcpy-go/logs"
 	"github.com/HumXC/scrcpy-go/server"
 	"github.com/sevlyar/go-daemon"
@@ -133,7 +134,7 @@ func Command(scid int) {
 }
 func main() {
 	logger := logs.GetLogger()
-	opt, err := server.ParseOption(os.Args)
+	opt, err := scrcpy.ParseOption(os.Args)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -150,7 +151,7 @@ func main() {
 	opt.Audio = false   // 暂时禁用，仅测试视频
 	opt.Control = false // 暂时禁用，仅测试视频
 	logger.Info("Creating scrcpy", "args", opt.ToArgs())
-	scrcpy := server.NewScrcpy(opt)
+	scrcpy := server.New(opt)
 	defer scrcpy.Stop()
-	server.RunServer(scrcpy, ip, port)
+	panic(server.NewQUIC(scrcpy).Run(ip, port))
 }

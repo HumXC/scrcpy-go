@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-const dist_dir = "build"
+const dist_dir = "dist"
 
 var build_args []string = []string{
 	"build",

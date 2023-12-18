@@ -1,15 +1,15 @@
-package server
+package scrcpy
 
 import (
 	"fmt"
 	"reflect"
 	"strings"
 
-	"github.com/HumXC/scrcpy-go/server/utils"
+	"github.com/HumXC/scrcpy-go/utils"
 )
 
 // Base: https://github.com/Genymobile/scrcpy/blob/1ee46970e373ea3c34c3d9b632fef34982d7a52b/server/src/main/java/com/genymobile/scrcpy/Options.java
-type ScrcpyOptions struct {
+type Options struct {
 	Scid                  int    `scrcpy_opt:"scid"`
 	LogLevel              string `scrcpy_opt:"log_level"`
 	Video                 bool   `scrcpy_opt:"video"`
@@ -48,7 +48,7 @@ type ScrcpyOptions struct {
 
 // 返回用于启动 scrcpy-server 的参数
 // 当字段的值与默认值相同时会被忽略
-func (s *ScrcpyOptions) ToArgs() []string {
+func (s *Options) ToArgs() []string {
 	default_ := DefaultOption()
 	defaultV := reflect.ValueOf(default_)
 	optV := reflect.ValueOf(s).Elem()
@@ -79,8 +79,8 @@ func (s *ScrcpyOptions) ToArgs() []string {
 // DefaultOption() 返回一个带有默认值的 ScrcpyOptions
 // 其默认值不是 go 的默认值，而是 scrcpy-server 中定义的默认值，与 scrcpy-server 中的默认值保持一致
 // https://github.com/Genymobile/scrcpy/blob/1ee46970e373ea3c34c3d9b632fef34982d7a52b/server/src/main/java/com/genymobile/scrcpy/Options.java#L8
-func DefaultOption() ScrcpyOptions {
-	return ScrcpyOptions{
+func DefaultOption() Options {
+	return Options{
 		// TODO：
 		// private VideoCodec videoCodec = VideoCodec.H264;
 		// private AudioCodec audioCodec = AudioCodec.OPUS;
@@ -106,7 +106,7 @@ func DefaultOption() ScrcpyOptions {
 	}
 }
 
-func ParseOption(args []string) (ScrcpyOptions, error) {
+func ParseOption(args []string) (Options, error) {
 	opt := DefaultOption()
 	optV := reflect.ValueOf(&opt).Elem()
 	optT := reflect.TypeOf(opt)
@@ -137,5 +137,5 @@ func ParseOption(args []string) (ScrcpyOptions, error) {
 			return opt, fmt.Errorf("unknown option: %s", arg)
 		}
 	}
-	return optV.Interface().(ScrcpyOptions), nil
+	return optV.Interface().(Options), nil
 }

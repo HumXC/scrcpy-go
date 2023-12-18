@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/HumXC/scrcpy-go"
 	"github.com/HumXC/scrcpy-go/logs"
 	"github.com/HumXC/scrcpy-go/server/embeds"
 )
@@ -32,17 +33,17 @@ func IsExist(file string) bool {
 }
 
 type ScrcpyServer struct {
-	opt       ScrcpyOptions
+	opt       scrcpy.Options
 	proc      *os.Process
 	procState *os.ProcessState
 	mu        sync.Mutex
 }
 
-func (s *ScrcpyServer) Option() ScrcpyOptions {
+func (s *ScrcpyServer) Option() scrcpy.Options {
 	return s.opt
 }
 
-func NewScrcpy(opt ScrcpyOptions) *ScrcpyServer {
+func New(opt scrcpy.Options) *ScrcpyServer {
 	return &ScrcpyServer{
 		opt: opt,
 	}
@@ -119,7 +120,7 @@ func (s *ScrcpyServer) Open() (io.ReadWriteCloser, error) {
 	return conn, nil
 }
 func (s *ScrcpyServer) AutoOpen() (io.ReadWriteCloser, error) {
-	if s.proc == nil || s.procState.Exited() {
+	if s.proc == nil || s.procState == nil || s.procState.Exited() {
 		logs.GetLogger().Info("Scrcpy server not running, try to start")
 		s.Stop()
 		err := s.Start()

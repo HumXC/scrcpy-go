@@ -3,8 +3,6 @@ package utils
 import (
 	"reflect"
 	"strconv"
-
-	"github.com/gorilla/websocket"
 )
 
 func SetValue(field reflect.Value, value string) error {
@@ -28,24 +26,4 @@ func SetValue(field reflect.Value, value string) error {
 		panic("unsupported type: " + field.Kind().String())
 	}
 	return nil
-}
-
-type WebsoctekWriteCloser struct {
-	Conn *websocket.Conn
-}
-
-func (w *WebsoctekWriteCloser) Close() error {
-	err := w.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-	if err != nil {
-		return err
-	}
-	return w.Conn.Close()
-}
-
-func (w *WebsoctekWriteCloser) Write(p []byte) (int, error) {
-	err := w.Conn.WriteMessage(websocket.BinaryMessage, p)
-	if err != nil {
-		return 0, err
-	}
-	return len(p), nil
 }

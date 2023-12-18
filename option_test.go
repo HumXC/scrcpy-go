@@ -1,12 +1,12 @@
-package server_test
+package scrcpy_test
 
 import (
 	"fmt"
 	"reflect"
 	"testing"
 
-	"github.com/HumXC/scrcpy-go/server"
-	"github.com/HumXC/scrcpy-go/server/utils"
+	"github.com/HumXC/scrcpy-go"
+	"github.com/HumXC/scrcpy-go/utils"
 )
 
 func TestParse(t *testing.T) {
@@ -14,7 +14,7 @@ func TestParse(t *testing.T) {
 		"power_on=true",
 		"ss",
 	}
-	opt, err := server.ParseOption(args)
+	opt, err := scrcpy.ParseOption(args)
 	if err != nil {
 		t.Error(err)
 	}
