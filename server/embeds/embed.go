@@ -1,4 +1,4 @@
-package binary
+package embeds
 
 import _ "embed"
 
