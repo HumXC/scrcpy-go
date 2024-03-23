@@ -3,6 +3,7 @@ package metas
 import (
 	"encoding/binary"
 	"io"
+	"strings"
 
 	"github.com/HumXC/scrcpy-go/codecs"
 )
@@ -11,10 +12,14 @@ type Device struct {
 	Name string
 }
 
-func (d *Device) LoadFrom(r io.Reader) {
+func (d *Device) LoadFrom(r io.Reader) error {
 	name := make([]byte, 64)
-	binary.Read(r, binary.BigEndian, &name)
-	d.Name = string(name)
+	err := binary.Read(r, binary.BigEndian, &name)
+	if err != nil {
+		return err
+	}
+	d.Name = strings.Trim(string(name), "\x00")
+	return nil
 }
 
 func (d *Device) ToBytes() []byte {
@@ -77,26 +82,3 @@ const (
 	PACKET_FLAG_CONFIG    = uint64(1) << 63
 	PACKET_FLAG_KEY_FRAME = uint64(1) << 62
 )
-
-type Frame struct {
-	ConfigPacketFlag bool
-	KeyFrameFlag     bool
-	PTS              uint64
-	PacketSize       uint32
-}
-
-func (f *Frame) LoadFrom(r io.Reader) error {
-	pts := make([]byte, 8)
-	err := binary.Read(r, binary.BigEndian, pts)
-	if err != nil {
-		return err
-	}
-	f.ConfigPacketFlag = (binary.BigEndian.Uint64(pts) & PACKET_FLAG_CONFIG) != 0
-	f.KeyFrameFlag = (binary.BigEndian.Uint64(pts) & PACKET_FLAG_KEY_FRAME) != 0
-	f.PTS = binary.BigEndian.Uint64(pts) &^ (PACKET_FLAG_CONFIG | PACKET_FLAG_KEY_FRAME)
-	err = binary.Read(r, binary.BigEndian, &f.PacketSize)
-	if err != nil {
-		return err
-	}
-	return nil
-}

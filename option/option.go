@@ -1,11 +1,10 @@
-package scrcpy
+package option
 
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
-
-	"github.com/HumXC/scrcpy-go/utils"
 )
 
 // Base: https://github.com/Genymobile/scrcpy/blob/1ee46970e373ea3c34c3d9b632fef34982d7a52b/server/src/main/java/com/genymobile/scrcpy/Options.java
@@ -48,11 +47,15 @@ type Options struct {
 
 // 返回用于启动 scrcpy-server 的参数
 // 当字段的值与默认值相同时会被忽略
+// 忽略 TunnelForward, TunnelForward 必须为 true
 func (s *Options) ToArgs() []string {
-	default_ := DefaultOption()
+	// tunnel_forward 必须开启
+	o := *s
+	o.TunnelForward = true
+	default_ := Default()
 	defaultV := reflect.ValueOf(default_)
-	optV := reflect.ValueOf(s).Elem()
-	optT := reflect.TypeOf(*s)
+	optV := reflect.ValueOf(&o).Elem()
+	optT := reflect.TypeOf(o)
 	args := make([]string, 0)
 	for i := 0; i < optV.NumField(); i++ {
 		fie := optV.Field(i)
@@ -76,10 +79,10 @@ func (s *Options) ToArgs() []string {
 	return args
 }
 
-// DefaultOption() 返回一个带有默认值的 ScrcpyOptions
+// Default() 返回一个带有默认值的 ScrcpyOptions
 // 其默认值不是 go 的默认值，而是 scrcpy-server 中定义的默认值，与 scrcpy-server 中的默认值保持一致
 // https://github.com/Genymobile/scrcpy/blob/1ee46970e373ea3c34c3d9b632fef34982d7a52b/server/src/main/java/com/genymobile/scrcpy/Options.java#L8
-func DefaultOption() Options {
+func Default() Options {
 	return Options{
 		// TODO：
 		// private VideoCodec videoCodec = VideoCodec.H264;
@@ -106,8 +109,9 @@ func DefaultOption() Options {
 	}
 }
 
-func ParseOption(args []string) (Options, error) {
-	opt := DefaultOption()
+// 忽略 TunnelForward, TunnelForward 必须为 true
+func Parse(args []string) (Options, error) {
+	opt := Default()
 	optV := reflect.ValueOf(&opt).Elem()
 	optT := reflect.TypeOf(opt)
 	keyValue := make(map[string]reflect.Value)
@@ -129,7 +133,7 @@ func ParseOption(args []string) (Options, error) {
 			continue
 		}
 		if v, ok := keyValue[kv[0]]; ok {
-			err := utils.SetValue(v, kv[1])
+			err := setValue(v, kv[1])
 			if err != nil {
 				return opt, fmt.Errorf("value conver error: %w", err)
 			}
@@ -137,5 +141,29 @@ func ParseOption(args []string) (Options, error) {
 			return opt, fmt.Errorf("unknown option: %s", arg)
 		}
 	}
-	return optV.Interface().(Options), nil
+	finalOpt := optV.Interface().(Options)
+	finalOpt.TunnelForward = true
+	return finalOpt, nil
+}
+func setValue(field reflect.Value, value string) error {
+	switch field.Kind() {
+	case reflect.Bool:
+		v, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		field.SetBool(v)
+	case reflect.Int:
+		v, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return err
+		}
+		field.SetInt(v)
+	case reflect.String:
+		field.SetString(value)
+	default:
+		// 能走到这说明 ScrcpyOptions 结构体有问题
+		panic("unsupported type: " + field.Kind().String())
+	}
+	return nil
 }

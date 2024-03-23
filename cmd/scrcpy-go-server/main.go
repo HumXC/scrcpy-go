@@ -7,8 +7,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/HumXC/scrcpy-go"
 	"github.com/HumXC/scrcpy-go/logs"
+	"github.com/HumXC/scrcpy-go/option"
 	"github.com/HumXC/scrcpy-go/server"
 	"github.com/sevlyar/go-daemon"
 	"github.com/shirou/gopsutil/process"
@@ -30,11 +30,6 @@ func init() {
 	flag.BoolVar(&isKill, "k", false, "find and kill all process")
 	flag.BoolVar(&isList, "l", false, "list all process")
 	flag.Parse()
-}
-
-type Daemonize struct {
-	IAmDaemon bool
-	Pid       int
 }
 
 func Daemon(scid int) (pid int, err error) {
@@ -109,9 +104,7 @@ func Kill() {
 		_ = proc.Kill()
 	}
 }
-func MDNS() {
 
-}
 func Command(scid int) {
 	if isKill {
 		Kill()
@@ -134,7 +127,7 @@ func Command(scid int) {
 }
 func main() {
 	logger := logs.GetLogger()
-	opt, err := scrcpy.ParseOption(os.Args)
+	opt, err := option.Parse(os.Args)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -142,12 +135,6 @@ func main() {
 	Command(opt.Scid)
 
 	// https://github.com/Genymobile/scrcpy/blob/master/doc/develop.md#execution
-	opt.TunnelForward = true // https://github.com/Genymobile/scrcpy/blob/master/doc/develop.md#standalone-server
-	// opt.StayAwake = false
-	// opt.Cleanup = false
-	opt.SendDummyByte = false
-	opt.RawStream = false
-	opt.VideoEncoder = "OMX.google.h264.encoder"
 	opt.Audio = false   // 暂时禁用，仅测试视频
 	opt.Control = false // 暂时禁用，仅测试视频
 	logger.Info("Creating scrcpy", "args", opt.ToArgs())

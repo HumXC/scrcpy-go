@@ -1,28 +1,25 @@
-package scrcpy_test
+package option
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
-	"github.com/HumXC/scrcpy-go"
-	"github.com/HumXC/scrcpy-go/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParse(t *testing.T) {
 	args := []string{
-		"power_on=true",
+		"power_on=false",
+		"tunnel_forward=false",
 		"ss",
 	}
-	opt, err := scrcpy.ParseOption(args)
+	opt, err := Parse(args)
 	if err != nil {
 		t.Error(err)
 	}
 	ar := opt.ToArgs()
-	fmt.Println(ar)
-	if opt.PowerOn != true {
-		t.Error(fmt.Errorf("want:true, got: %t", opt.PowerOn))
-	}
+	assert.Equal(t, 1, len(ar))
+	assert.Equal(t, "power_on=false", ar[0])
 }
 
 func TestSetValue(t *testing.T) {
@@ -36,11 +33,11 @@ func TestSetValue(t *testing.T) {
 	boolV := v.FieldByName("Bool")
 	stringV := v.FieldByName("String")
 	// set int value
-	utils.SetValue(intV, "12")
+	setValue(intV, "12")
 	// set bool value
-	utils.SetValue(boolV, "true")
+	setValue(boolV, "true")
 	// set string value
-	utils.SetValue(stringV, "hello")
+	setValue(stringV, "hello")
 
 	s := v.Interface().(S)
 	if s.Int != 12 {

@@ -6,7 +6,7 @@ import (
 )
 
 var Default = slog.Default()
-var ScrcpyOutput = os.Stdout
+var ScrcpyOutput = os.Stderr
 
 func GetLogger() *slog.Logger {
 	return Default

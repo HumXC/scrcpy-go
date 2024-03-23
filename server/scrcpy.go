@@ -100,7 +100,7 @@ func (s *ScrcpyServer) TryOpen(timeout time.Duration) (io.ReadWriteCloser, error
 		}
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("failed to try open socket: timeout %d", timeout)
+			return nil, fmt.Errorf("failed to try open socket: timeout %.2fs", timeout.Seconds())
 		default:
 			time.Sleep(time.Millisecond * 100)
 		}
