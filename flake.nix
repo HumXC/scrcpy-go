@@ -14,6 +14,8 @@
         devShells.default = mkShell {
           buildInputs = [
             gcc
+            SDL2
+            pkg-config
             (ffmpeg_5.override {
               buildAvcodec = true;
               buildAvformat = true;

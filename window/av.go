@@ -1,4 +1,4 @@
-package decoder
+package window
 
 /*
 #cgo LDFLAGS: -lavcodec -lavformat -lavutil
@@ -13,6 +13,7 @@ AVIOContext *avio_alloc_context_with_go_IO(
     int buffer_size,
     int write_flag,
     void *opaque);
+void set_hw_frames_ctx(AVCodecContext *ctx, AVBufferRef *hw_frames_ctx);
 */
 import "C"
 import (
@@ -22,6 +23,7 @@ import (
 	"unsafe"
 )
 
+type AVFrame *C.AVFrame
 type Decoder struct {
 	id     C.int
 	packet *C.AVPacket
@@ -67,20 +69,22 @@ func (s *Decoder) Error() error {
 func (s *Decoder) Frame() *C.AVFrame {
 	return s.frame
 }
+
+// FIXME
 func (s *Decoder) Free() {
-	C.free(unsafe.Pointer(&s.id))
+	// C.free(unsafe.Pointer(&s.id))
 	C.av_packet_free(&s.packet)
 	C.av_frame_free(&s.frame)
 	C.av_packet_unref(s.packet)
 
 	C.avformat_close_input(&s.formatCtx)
 	C.avio_context_free(&s.avioCtx)
-	C.free(unsafe.Pointer(s.buffer))
+	// C.free(unsafe.Pointer(s.buffer))
 	C.avcodec_free_context(&s.codecCtx)
-	C.free(unsafe.Pointer(&s.ret))
-	C.free(unsafe.Pointer(&s.videoStreamIndex))
+	// C.free(unsafe.Pointer(&s.ret))
+	// C.free(unsafe.Pointer(&s.videoStreamIndex))
 }
-func New(input io.Reader) *Decoder {
+func NewDecoder(input io.Reader) *Decoder {
 	s := &Decoder{}
 	id := C.int(0)
 	for i := range readers {
@@ -124,7 +128,9 @@ func New(input io.Reader) *Decoder {
 	if s.codecCtx == nil {
 		panic("Could not allocate codec context")
 	}
-
+	var hwDeviceCtx *C.AVBufferRef
+	C.av_hwdevice_ctx_create(&hwDeviceCtx, C.AV_HWDEVICE_TYPE_OPENCL, nil, nil, 0)
+	s.codecCtx.hw_device_ctx = hwDeviceCtx
 	// 将流参数拷贝到解码器上下文cket
 	if C.avcodec_parameters_to_context(s.codecCtx, C.at_streams(s.formatCtx.streams, s.videoStreamIndex).codecpar) < 0 {
 		fmt.Println("Failed to copy codec parameters to decoder context")
