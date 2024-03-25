@@ -53,6 +53,7 @@ func (s *quicServer) handler(conn quic.Connection) {
 		logger.Error("QUIC open stream error", "msg", err)
 		return
 	}
+	defer stream.Close()
 	scrcpySocket, err := s.scrcpy.AutoOpen()
 	if err != nil {
 		logger.Error("Scrcpy open error", "msg", err)
