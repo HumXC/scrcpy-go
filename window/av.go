@@ -60,8 +60,6 @@ func (s *Decoder) Next() bool {
 	}
 	C.av_packet_unref(s.packet)
 	C.av_frame_unref(s.frame)
-	// FIXME 疑似内存泄露
-	// C.av_buffer_unref(unsafe.Pointer(s.buffer))
 
 	if C.av_read_frame(s.formatCtx, s.packet) < 0 {
 		return false
@@ -91,12 +89,15 @@ func (s *Decoder) Frame() *C.AVFrame {
 }
 
 func (s *Decoder) Free() {
-	C.av_packet_free(&s.packet)
-	C.av_frame_free(&s.frame)
-	C.avformat_close_input(&s.formatCtx)
+	C.avcodec_free_context(&s.codecCtx)
+	C.avformat_free_context(s.formatCtx)
 	C.avio_context_free(&s.avioCtx)
 	C.avcodec_free_context(&s.codecCtx)
-	// TODO 释放 decoders[id]
+	C.av_frame_free(&s.frame)
+	C.av_packet_free(&s.packet)
+	// FIXME 此处 buffer 无法 free
+	// C.av_buffer_unref(&s.buffer)
+	delete(decoders, s.id)
 }
 
 func NewDecoder(input io.Reader) *Decoder {
@@ -172,7 +173,7 @@ func readPacket(id unsafe.Pointer, buf *C.uint8_t, bufSize C.int) C.int {
 	buffer := (*[1 << 30]byte)(unsafe.Pointer(buf))[:int(bufSize):int(bufSize)]
 	n, err := decoder.r.Read(buffer)
 	decoder.err = err
-	if err == io.EOF {
+	if err == io.EOF || n == 0 {
 		return C.AVERROR_EOF
 	}
 	if err != nil {
