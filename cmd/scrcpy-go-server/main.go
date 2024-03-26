@@ -134,11 +134,11 @@ func main() {
 	}
 	Command(opt.Scid)
 
-	// https://github.com/Genymobile/scrcpy/blob/master/doc/develop.md#execution
 	opt.Audio = false   // 暂时禁用，仅测试视频
 	opt.Control = false // 暂时禁用，仅测试视频
 	opt.MaxFps = 60
-	opt.VideoBitRate = 500_000_000
+	opt.VideoBitRate = 40_000_000
+	opt.VideoCodec = "h264"
 	logger.Info("Creating scrcpy", "args", opt.ToArgs())
 	scrcpy := server.New(opt)
 	defer scrcpy.Stop()

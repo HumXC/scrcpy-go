@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-VERSION="v2.1.1"
+VERSION="v2.4"
 
 URL="https://github.com/Genymobile/scrcpy/releases/download/$VERSION/scrcpy-server-$VERSION"
 

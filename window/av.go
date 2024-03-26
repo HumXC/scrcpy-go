@@ -24,8 +24,6 @@ import (
 	"unsafe"
 )
 
-type AVFrame *C.AVFrame
-
 func avError(err C.int) error {
 	if err == 0 {
 		return nil
@@ -54,14 +52,25 @@ type Decoder struct {
 	ret              C.int
 }
 
+func (s *Decoder) Free() {
+	C.avcodec_free_context(&s.codecCtx)
+	C.avformat_free_context(s.formatCtx)
+	C.avio_context_free(&s.avioCtx)
+	C.av_frame_free(&s.frame)
+	C.av_packet_free(&s.packet)
+	// FIXME 此处 buffer 无法 free
+	// C.av_buffer_unref(&s.buffer)
+	delete(decoders, s.id)
+}
+
 func (s *Decoder) Next() bool {
 	if s.err != nil {
 		return false
 	}
 	C.av_packet_unref(s.packet)
 	C.av_frame_unref(s.frame)
-
-	if C.av_read_frame(s.formatCtx, s.packet) < 0 {
+	if err := avError(C.av_read_frame(s.formatCtx, s.packet)); err != nil {
+		s.err = fmt.Errorf("reading frame failed: %w", err)
 		return false
 	}
 	if s.packet.stream_index != s.videoStreamIndex {
@@ -86,18 +95,6 @@ func (s *Decoder) Error() error {
 }
 func (s *Decoder) Frame() *C.AVFrame {
 	return s.frame
-}
-
-func (s *Decoder) Free() {
-	C.avcodec_free_context(&s.codecCtx)
-	C.avformat_free_context(s.formatCtx)
-	C.avio_context_free(&s.avioCtx)
-	C.avcodec_free_context(&s.codecCtx)
-	C.av_frame_free(&s.frame)
-	C.av_packet_free(&s.packet)
-	// FIXME 此处 buffer 无法 free
-	// C.av_buffer_unref(&s.buffer)
-	delete(decoders, s.id)
 }
 
 func NewDecoder(input io.Reader) *Decoder {
@@ -126,13 +123,18 @@ func NewDecoder(input io.Reader) *Decoder {
 		s.err = fmt.Errorf("cannot open input: %w", err)
 		return s
 	}
+	// if err := avError(C.avformat_find_stream_info(s.formatCtx, nil)); err != nil {
+	// 	s.err = fmt.Errorf("cannot find stream info: %w", err)
+	// 	return s
+	// }
 	s.videoStreamIndex = C.av_find_best_stream(s.formatCtx, C.AVMEDIA_TYPE_VIDEO, -1, -1, nil, 0)
 	if s.videoStreamIndex < 0 {
 		err := avError(s.videoStreamIndex)
 		s.err = fmt.Errorf("cannot find video stream in input file: %w", err)
 		return s
 	}
-	codec := C.avcodec_find_decoder(C.at_streams(s.formatCtx.streams, s.videoStreamIndex).codecpar.codec_id)
+	params := C.at_streams(s.formatCtx.streams, s.videoStreamIndex).codecpar
+	codec := C.avcodec_find_decoder(params.codec_id)
 	if codec == nil {
 		s.err = errors.New("unsupported codec")
 		return s
@@ -143,17 +145,12 @@ func NewDecoder(input io.Reader) *Decoder {
 		s.err = errors.New("could not allocate codec context")
 		return s
 	}
-	// FIXME 验证硬件加速
-	var hwDeviceCtx *C.AVBufferRef
-	C.av_hwdevice_ctx_create(&hwDeviceCtx, C.AV_HWDEVICE_TYPE_OPENCL, nil, nil, 0)
-	s.codecCtx.hw_device_ctx = hwDeviceCtx
-	// 将流参数拷贝到解码器上下文cket
-	if C.avcodec_parameters_to_context(s.codecCtx, C.at_streams(s.formatCtx.streams, s.videoStreamIndex).codecpar) < 0 {
-		s.err = errors.New("failed to copy codec parameters to decoder context")
+	if err := avError(C.avcodec_parameters_to_context(s.codecCtx, params)); err != nil {
+		s.err = fmt.Errorf("failed to copy codec parameters to decoder context: %w", err)
 		return s
 	}
-	if C.avcodec_open2(s.codecCtx, codec, nil) < 0 {
-		s.err = errors.New("could not open codec")
+	if err := avError(C.avcodec_open2(s.codecCtx, codec, nil)); err != nil {
+		s.err = fmt.Errorf("could not open codec; %w", err)
 		return s
 	}
 	s.packet = C.av_packet_alloc()

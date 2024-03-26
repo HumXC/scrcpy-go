@@ -62,7 +62,7 @@ func (s *quicServer) handler(conn quic.Connection) {
 	defer scrcpySocket.Close()
 	defer logger.Info("QUIC connect closed", "remote", conn.RemoteAddr())
 
-	_, err = io.Copy(stream, scrcpySocket)
+	_, err = io.CopyBuffer(stream, scrcpySocket, make([]byte, 1024*4096))
 	if err != nil {
 		defer logger.Error("QUIC io error", "msg", err)
 		return
