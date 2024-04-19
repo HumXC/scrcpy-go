@@ -18,7 +18,7 @@ import (
 )
 
 const WORKDIR = "/data/local/tmp"
-const ServerVersion = "2.1.1"
+const ServerVersion = embeds.ScrcpyServerVersion
 
 var ScrcpyServerPath = path.Join(WORKDIR, "scrcpy-server")
 

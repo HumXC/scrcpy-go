@@ -10,10 +10,11 @@ import (
 
 func main() {
 	// addr := "192.168.1.17:8080"
-	addr := "192.168.157.182:8080"
+	addr := "192.168.1.18:8080"
 	opt := option.Default()
 	opt.Audio = false   // 暂时禁用，仅测试视频
 	opt.Control = false // 暂时禁用，仅测试视频
+
 	client := client.New(addr, opt)
 
 	stream, err := client.Open()
@@ -30,20 +31,46 @@ func main() {
 	fmt.Println(client.Name)
 	fmt.Println(video.Codec)
 	fmt.Println(video.Width, video.Height)
-
-	sdl, err := window.NewWindow(client.Name, video.Width, video.Height)
+	sdl, quit, resize, err := window.InitWindow(client.Name, video.Width, video.Height)
 	if err != nil {
 		panic(err)
 	}
 	defer sdl.Free()
+
 	dec := window.NewDecoder(video)
 	defer dec.Free()
-
-	for dec.Next() {
-		f := dec.Frame()
-		sdl.RenderFrame(f)
-	}
-	if dec.Error() != nil {
-		fmt.Println(dec.Error())
+	defer func() {
+		if dec.Error() != nil {
+			fmt.Println(dec.Error())
+		}
+	}()
+	frames := make(chan struct{})
+	go func() {
+		for {
+			if dec.Next() {
+				frames <- struct{}{}
+			} else {
+				return
+			}
+		}
+	}()
+	var prevFrame *window.AVFrame
+	for {
+		select {
+		case <-quit:
+			return
+		case <-resize:
+			if prevFrame == nil {
+				continue
+			}
+			_ = sdl.RenderFrame(*prevFrame)
+		case <-frames:
+			if prevFrame != nil {
+				prevFrame.Free()
+			}
+			f := dec.Frame()
+			prevFrame = &f
+			_ = sdl.RenderFrame(f)
+		}
 	}
 }

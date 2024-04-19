@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"unsafe"
 )
 
@@ -50,8 +51,16 @@ type Decoder struct {
 	buffer           *C.AVBufferRef
 	videoStreamIndex C.int
 	ret              C.int
+	mu               sync.Mutex
+}
+type AVFrame struct {
+	P *C.AVFrame
 }
 
+func (f AVFrame) Free() {
+	C.av_frame_unref(f.P)
+	C.av_frame_free(&f.P)
+}
 func (s *Decoder) Free() {
 	C.avcodec_free_context(&s.codecCtx)
 	C.avformat_free_context(s.formatCtx)
@@ -64,11 +73,12 @@ func (s *Decoder) Free() {
 }
 
 func (s *Decoder) Next() bool {
+
 	if s.err != nil {
 		return false
 	}
 	C.av_packet_unref(s.packet)
-	C.av_frame_unref(s.frame)
+	frame := C.av_frame_alloc()
 	if err := avError(C.av_read_frame(s.formatCtx, s.packet)); err != nil {
 		s.err = fmt.Errorf("reading frame failed: %w", err)
 		return false
@@ -81,20 +91,31 @@ func (s *Decoder) Next() bool {
 		s.err = fmt.Errorf("sending a packet for decoding: %w", avError(s.ret))
 		return false
 	}
-	s.ret = C.avcodec_receive_frame(s.codecCtx, s.frame)
+	s.ret = C.avcodec_receive_frame(s.codecCtx, frame)
 	if s.ret == C.AVERROR_(C.EAGAIN) || s.ret == C.AVERROR_EOF {
 		return false
 	} else if s.ret < 0 {
 		s.err = fmt.Errorf("during decoding: %w", avError(s.ret))
 		return false
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.frame != nil {
+		s.err = errors.New("frame already exists")
+		return false
+	}
+	s.frame = frame
 	return true
 }
 func (s *Decoder) Error() error {
 	return s.err
 }
-func (s *Decoder) Frame() *C.AVFrame {
-	return s.frame
+func (s *Decoder) Frame() AVFrame {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	f := AVFrame{P: s.frame}
+	s.frame = nil
+	return f
 }
 
 func NewDecoder(input io.Reader) *Decoder {
@@ -154,7 +175,7 @@ func NewDecoder(input io.Reader) *Decoder {
 		return s
 	}
 	s.packet = C.av_packet_alloc()
-	s.frame = C.av_frame_alloc()
+
 	return s
 }
 
