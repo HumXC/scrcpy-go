@@ -50,6 +50,7 @@ func main() {
 			if dec.Next() {
 				frames <- struct{}{}
 			} else {
+				close(frames)
 				return
 			}
 		}
@@ -64,7 +65,10 @@ func main() {
 				continue
 			}
 			_ = sdl.RenderFrame(*prevFrame)
-		case <-frames:
+		case _, ok := <-frames:
+			if !ok {
+				return
+			}
 			if prevFrame != nil {
 				prevFrame.Free()
 			}

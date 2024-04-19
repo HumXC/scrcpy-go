@@ -46,16 +46,30 @@ func (s *quicServer) Run(ip, port string) error {
 	}
 }
 func (s *quicServer) handler(conn quic.Connection) {
+	streamCloseCode := quic.StreamErrorCode(0)
+	closeCode := quic.ApplicationErrorCode(0)
+	closeMsg := "close"
+	defer func() {
+		conn.CloseWithError(closeCode, closeMsg)
+	}()
 	logger := logs.GetLogger()
 	logger.Info("QUIC connect success", "remote", conn.RemoteAddr())
 	stream, err := conn.OpenStreamSync(context.Background())
 	if err != nil {
+		closeCode = quic.ApplicationErrorCode(1)
+		closeMsg = err.Error()
 		logger.Error("QUIC open stream error", "msg", err)
 		return
 	}
+
 	defer stream.Close()
+	defer func() {
+		stream.CancelWrite(streamCloseCode)
+	}()
 	scrcpySocket, err := s.scrcpy.AutoOpen()
 	if err != nil {
+		closeCode = quic.ApplicationErrorCode(1)
+		closeMsg = "Scrcpy open error: " + err.Error()
 		logger.Error("Scrcpy open error", "msg", err)
 		return
 	}
@@ -64,9 +78,13 @@ func (s *quicServer) handler(conn quic.Connection) {
 
 	_, err = io.CopyBuffer(stream, scrcpySocket, make([]byte, 1024*4096))
 	if err != nil {
-		defer logger.Error("QUIC io error", "msg", err)
+		streamCloseCode = quic.StreamErrorCode(1)
+		closeCode = quic.ApplicationErrorCode(1)
+		closeMsg = err.Error()
+		logger.Error("QUIC io error", "msg", err)
 		return
 	}
+
 }
 func NewQUIC(scrcpy *ScrcpyServer) *quicServer {
 	return &quicServer{

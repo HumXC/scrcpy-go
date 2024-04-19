@@ -73,7 +73,6 @@ func (s *Decoder) Free() {
 }
 
 func (s *Decoder) Next() bool {
-
 	if s.err != nil {
 		return false
 	}
@@ -144,10 +143,6 @@ func NewDecoder(input io.Reader) *Decoder {
 		s.err = fmt.Errorf("cannot open input: %w", err)
 		return s
 	}
-	// if err := avError(C.avformat_find_stream_info(s.formatCtx, nil)); err != nil {
-	// 	s.err = fmt.Errorf("cannot find stream info: %w", err)
-	// 	return s
-	// }
 	s.videoStreamIndex = C.av_find_best_stream(s.formatCtx, C.AVMEDIA_TYPE_VIDEO, -1, -1, nil, 0)
 	if s.videoStreamIndex < 0 {
 		err := avError(s.videoStreamIndex)
