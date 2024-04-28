@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/HumXC/scrcpy-go/cmd/scrcpy-go-server/embeds"
 	"github.com/HumXC/scrcpy-go/logs"
 	"github.com/HumXC/scrcpy-go/option"
 	"github.com/HumXC/scrcpy-go/server"
@@ -140,7 +141,26 @@ func main() {
 	opt.VideoBitRate = 40_000_000
 	opt.VideoCodec = "h264"
 	logger.Info("Creating scrcpy", "args", opt.ToArgs())
-	scrcpy := server.New(opt)
+
+	executable, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	scrcpyPath := path.Join(path.Dir(executable), "scrcpy-server")
+	f, err := os.Stat(scrcpyPath)
+
+	if os.IsNotExist(err) {
+		err = os.WriteFile(scrcpyPath, embeds.ScrcpyServer, 0755)
+		if err != nil {
+			panic(err)
+		}
+	} else if err == nil && f.IsDir() {
+		panic(scrcpyPath + " is a directory")
+	} else {
+		panic(err)
+	}
+
+	scrcpy := server.New(opt, scrcpyPath)
 	defer scrcpy.Stop()
 	panic(server.NewQUIC(scrcpy).Run(ip, port))
 }

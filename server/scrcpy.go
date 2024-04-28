@@ -7,32 +7,18 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/HumXC/scrcpy-go"
 	"github.com/HumXC/scrcpy-go/logs"
-	"github.com/HumXC/scrcpy-go/server/embeds"
 )
 
-const WORKDIR = "/data/local/tmp"
-const ServerVersion = embeds.ScrcpyServerVersion
-
-var ScrcpyServerPath = path.Join(WORKDIR, "scrcpy-server")
-
-func IsExist(file string) bool {
-	_, err := os.Stat(file)
-	if err != nil {
-		if os.IsExist(err) {
-			return true
-		}
-	}
-	return false
-}
+const ServerVersion = "2.4"
 
 type ScrcpyServer struct {
+	bin       string
 	opt       scrcpy.Options
 	proc      *os.Process
 	procState *os.ProcessState
@@ -43,9 +29,10 @@ func (s *ScrcpyServer) Option() scrcpy.Options {
 	return s.opt
 }
 
-func New(opt scrcpy.Options) *ScrcpyServer {
+func New(opt scrcpy.Options, scrcpyBin string) *ScrcpyServer {
 	return &ScrcpyServer{
 		opt: opt,
+		bin: scrcpyBin,
 	}
 }
 
@@ -53,14 +40,9 @@ func (s *ScrcpyServer) Start() (err error) {
 	if s.proc != nil {
 		return fmt.Errorf("scrcpy is running, pid: %d", s.proc.Pid)
 	}
-	if !IsExist(ScrcpyServerPath) {
-		err = os.WriteFile(ScrcpyServerPath, embeds.ScrcpyServer, 0755)
-		if err != nil {
-			panic(err)
-		}
-	}
+
 	cmd := exec.Command("app_process", append([]string{"/", "com.genymobile.scrcpy.Server", ServerVersion}, s.opt.ToArgs()...)...)
-	cmd.Env = append(os.Environ(), "CLASSPATH="+ScrcpyServerPath)
+	cmd.Env = append(os.Environ(), "CLASSPATH="+s.bin)
 	cmd.Stdout = logs.ScrcpyOutput
 	cmd.Stderr = logs.ScrcpyOutput
 	cmd.SysProcAttr = &syscall.SysProcAttr{
